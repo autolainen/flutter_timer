@@ -9,9 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  equatable: ^1.0.0
+  equatable: ^1.2.4
   wave: ^0.0.8
-  rxdart: ^0.24.0
+  flutter_bloc: ^6.0.0
 
 flutter:
   uses-material-design: true

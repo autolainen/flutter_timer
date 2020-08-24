@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_timer/bloc/new_timer_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_timer/cubit/timer_cubit.dart';
 import 'package:flutter_timer/ticker.dart';
 import 'package:wave/config.dart';
 import 'package:wave/wave.dart';
@@ -15,17 +16,16 @@ class MyApp extends StatelessWidget {
             accentColor: Color.fromRGBO(72, 74, 126, 1),
             brightness: Brightness.dark),
         title: 'Flutter Timer',
-        home: Timer(TimerBloc(Ticker())));
+        home: BlocProvider(
+          create: (context) => TimerCubit(Ticker()),
+          child: Timer(),
+        ));
   }
 }
 
 class Timer extends StatelessWidget {
-  final TimerBloc timerBloc;
-
   static const TextStyle timerTextStyle =
       TextStyle(fontSize: 60, fontWeight: FontWeight.bold);
-
-  const Timer(this.timerBloc, {Key key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -39,80 +39,64 @@ class Timer extends StatelessWidget {
               children: <Widget>[
                 Padding(
                     padding: EdgeInsets.symmetric(vertical: 100.0),
-                    child: Center(
-                        child: StreamBuilder(
-                            stream: timerBloc.timerCount,
-                            builder: (context, timerCountSnapshot) {
-                              return timerCountSnapshot.data == null
-                                  ? SizedBox.shrink()
-                                  : (int duration) {
-                                      final String minutesStr =
-                                          ((duration / 60) % 60)
-                                              .floor()
-                                              .toString()
-                                              .padLeft(2, '0');
-                                      final String secondsStr = (duration % 60)
-                                          .floor()
-                                          .toString()
-                                          .padLeft(2, '0');
-                                      return Text(
-                                        '$minutesStr:$secondsStr',
-                                        style: Timer.timerTextStyle,
-                                      );
-                                    }(timerCountSnapshot.data);
-                            }))),
-                Actions(timerBloc)
+                    child: Center(child: BlocBuilder<TimerCubit, TimerState>(
+                        builder: (context, state) {
+                      return (int duration) {
+                        final String minutesStr = ((duration / 60) % 60)
+                            .floor()
+                            .toString()
+                            .padLeft(2, '0');
+                        final String secondsStr =
+                            (duration % 60).floor().toString().padLeft(2, '0');
+                        return Text(
+                          '$minutesStr:$secondsStr',
+                          style: Timer.timerTextStyle,
+                        );
+                      }(state.duration);
+                    }))),
+                Actions()
               ])
         ]));
   }
 }
 
 class Actions extends StatelessWidget {
-  final TimerBloc timerBloc;
-
-  const Actions(this.timerBloc, {Key key}) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<TimerBlocState>(
-        stream: timerBloc.timerState,
-        builder: (context, stateSnapshot) {
-          return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: stateSnapshot == null
-                  ? []
-                  : _mapStateToActionButtons(stateSnapshot.data));
-        });
-  }
-
-  List<Widget> _mapStateToActionButtons(TimerBlocState currentState) {
-    List<Widget> result;
-    switch (currentState) {
-      case TimerBlocState.reset:
-        result = [
-          FloatingActionButton(
-              child: Icon(Icons.play_arrow), onPressed: () => timerBloc.start())
-        ];
-        break;
-      case TimerBlocState.running:
-        result = [
-          FloatingActionButton(
-              child: Icon(Icons.pause), onPressed: () => timerBloc.pause()),
-          FloatingActionButton(
-              child: Icon(Icons.replay), onPressed: () => timerBloc.reset())
-        ];
-        break;
-      case TimerBlocState.paused:
-        result = [
-          FloatingActionButton(
-              child: Icon(Icons.play_arrow),
-              onPressed: () => timerBloc.resume()),
-          FloatingActionButton(
-              child: Icon(Icons.replay), onPressed: () => timerBloc.reset())
-        ];
-        break;
-    }
-    return result ?? [];
+    return BlocBuilder<TimerCubit, TimerState>(
+      builder: (context, state) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            if (state.status == TimerStatus.initial)
+              FloatingActionButton(
+                child: Icon(Icons.play_arrow),
+                onPressed: () => context.bloc<TimerCubit>().start(),
+              ),
+            if (state.status == TimerStatus.running) ...[
+              FloatingActionButton(
+                child: Icon(Icons.pause),
+                onPressed: () => context.bloc<TimerCubit>().pause(),
+              ),
+              FloatingActionButton(
+                child: Icon(Icons.replay),
+                onPressed: () => context.bloc<TimerCubit>().reset(),
+              )
+            ],
+            if (state.status == TimerStatus.paused) ...[
+              FloatingActionButton(
+                child: Icon(Icons.play_arrow),
+                onPressed: () => context.bloc<TimerCubit>().resume(),
+              ),
+              FloatingActionButton(
+                child: Icon(Icons.replay),
+                onPressed: () => context.bloc<TimerCubit>().reset(),
+              )
+            ],
+          ],
+        );
+      },
+    );
   }
 }
 
